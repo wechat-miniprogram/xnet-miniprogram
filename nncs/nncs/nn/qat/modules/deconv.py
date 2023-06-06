@@ -32,7 +32,10 @@ class ConvTranspose2d(nn.ConvTranspose2d):
         )
 
         assert qconfig, "qconfig must be provided for QAT module"
-        self.weight_fake_quant = qconfig.weight(ch_axis=0)
+        if groups == 1:
+            self.weight_fake_quant = qconfig.weight(ch_axis=1)
+        else:
+            self.weight_fake_quant = qconfig.weight(ch_axis=0)
 
     def forward(self, input, output_size=None):
         output_padding = self._output_padding(
@@ -43,22 +46,28 @@ class ConvTranspose2d(nn.ConvTranspose2d):
             self.kernel_size,
             self.dilation,
         )
-        # permuted_weight -> out_c//group, in_c, kh, kw
-        permuted_weight = self.weight.permute(1, 0, 2, 3)
-        permuted_weight = permuted_weight.reshape(
-            self.out_channels,
-            self.in_channels // self.groups,
-            self.kernel_size[0],
-            self.kernel_size[1],
-        )
-        weight_fq = self.weight_fake_quant(permuted_weight)
-        weight_fq = weight_fq.reshape(
-            self.out_channels // self.groups,
-            self.in_channels,
-            self.kernel_size[0],
-            self.kernel_size[1],
-        )
-        weight_fq = weight_fq.permute(1, 0, 2, 3)
+        
+        # weight -> in_c, ouc//group, kh, kw
+        if (self.groups == 1) or \
+           (self.out_channels == self.groups and self.in_channels == self.groups):
+            weight_fq = self.weight_fake_quant(self.weight)
+        else:
+            # permuted_weight -> out_c//group, in_c, kh, kw
+            permuted_weight = self.weight.permute(1, 0, 2, 3)
+            permuted_weight = permuted_weight.reshape(
+                self.out_channels,
+                self.in_channels // self.groups,
+                self.kernel_size[0],
+                self.kernel_size[1],
+            )
+            weight_fq = self.weight_fake_quant(permuted_weight)
+            weight_fq = weight_fq.reshape(
+                self.out_channels // self.groups,
+                self.in_channels,
+                self.kernel_size[0],
+                self.kernel_size[1],
+            )
+            weight_fq = weight_fq.permute(1, 0, 2, 3)
 
         o = F.conv_transpose2d(
             input,

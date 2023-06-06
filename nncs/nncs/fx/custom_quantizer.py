@@ -388,7 +388,7 @@ class XNetModelQuantizer(ModelQuantizer):
                         # assume input0 is the node operand not other attr
                         input_node = input_nodes[0]
                         if results[fx_node.name]:
-                            # if input node has many users, we don't add fq
+
                             if len(input_node.users) <= 1:
                                 results[input_node.name] = True
                             else:
@@ -481,7 +481,10 @@ class XNetModelQuantizer(ModelQuantizer):
                         if isinstance(args[0], torch.fx.Node):
                             target = args[0].target
                             named_modules = dict(model.named_modules())
-                            mod = named_modules[target]
+                            if target in named_modules:
+                                mod = named_modules[target]
+                            else:
+                                mod = None
                             if isinstance(
                                 mod,
                                 (
