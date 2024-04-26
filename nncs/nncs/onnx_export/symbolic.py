@@ -4,6 +4,7 @@ import torch
 import torch.onnx.symbolic_helper as sym_help
 from torch.onnx.symbolic_helper import parse_args
 from torch.onnx.symbolic_registry import register_op
+from torch.onnx.symbolic_opset11 import clamp
 
 
 @parse_args("v", "v", "v", "i", "i", "i")
