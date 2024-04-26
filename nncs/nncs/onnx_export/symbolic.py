@@ -25,6 +25,18 @@ def fake_quantize_per_channel_affine(g, inputs, scale, zero_point, axis, quant_m
         scale, zero_point, axis_i=axis)
 
 
+def relu6(g, input):
+    relu = input
+    dtype = input.type().scalarType()
+    if dtype is None:
+        dtype = 6  # float
+    else:
+        dtype = sym_help.scalar_type_to_onnx.index(sym_help.cast_pytorch_to_onnx[dtype])
+    min_val = g.op("Constant", value_t=torch.tensor(0, dtype=sym_help.scalar_type_to_pytorch_type[dtype]))
+    max_val = g.op("Constant", value_t=torch.tensor(6, dtype=sym_help.scalar_type_to_pytorch_type[dtype]))
+    return clamp(g, relu, min_val, max_val)
+
+
 def register_extra_symbolics(opset=11):
     # Following strings of text style are from colorama package
     bright_style, reset_style = '\x1b[1m', '\x1b[0m'
@@ -39,3 +51,4 @@ def register_extra_symbolics(opset=11):
     warnings.warn(msg)
 
     register_op('fake_quantize_per_channel_affine', fake_quantize_per_channel_affine, '', opset)
+    register_op('relu6', relu6, '', opset)
